@@ -18,6 +18,7 @@ This daemon contains the SOME/IP communication stack and is QM
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 # ============================================================================
 # Main Binary
@@ -28,6 +29,7 @@ cc_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":local_network_service",
+        ":network_control",
         ":remote_network_service",
         ":routing",
         "//score/config:config_flatbuffers",
@@ -66,6 +68,34 @@ cc_library(
         "//score/someip",
         "@score_baselibs//score/mw/log",
         "@vsomeip",
+    ],
+)
+
+# The Network Management control channel. Deliberately free of vsomeip,
+# configuration and logging dependencies: what it decodes can then be exercised
+# on its own rather than only through a running gateway, and what to do about a
+# record belongs to whoever knows what is being offered.
+cc_library(
+    name = "network_control",
+    srcs = [
+        "impl/network_control.cpp",
+        "impl/nm_control_protocol.cpp",
+    ],
+    hdrs = [
+        "impl/network_control.h",
+        "impl/nm_control_protocol.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "network_control_test",
+    size = "small",
+    srcs = ["impl/network_control_test.cpp"],
+    linkstatic = True,
+    deps = [
+        ":network_control",
+        "@googletest//:gtest_main",
     ],
 )
 

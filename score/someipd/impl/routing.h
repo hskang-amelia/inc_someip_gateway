@@ -17,6 +17,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vsomeip/vsomeip.hpp>
 
@@ -65,15 +66,55 @@ class Routing {
     ///        Use this to call setup_vsomeip() on RemoteNetworkService instances.
     void Run(std::atomic<bool>& shutdown_requested, std::function<void()> on_registered = {});
 
+    /// Allows or withdraws this node's SOME/IP offerings, as Network Management
+    /// decides whether the communication cluster may be awake.
+    ///
+    /// Withdrawing matters because service discovery does not consult anyone: it
+    /// re-offers and re-finds on its own timers, so a cluster NM has released
+    /// stays busy and never goes quiet while this daemon keeps offering. This is
+    /// where NM's decision reaches the traffic.
+    ///
+    /// Safe to call from another thread — it is normally called from
+    /// NetworkControl's reader thread — and does nothing when the state is
+    /// already what is asked for. Nothing is offered before vsomeip has
+    /// registered, whatever is allowed here; the two conditions are combined,
+    /// so allowing communication early is remembered rather than lost.
+    ///
+    /// **Communication is allowed until told otherwise.** A daemon that waited
+    /// for permission that never came would never offer anything, and a SOME/IP
+    /// stack that is silent because nobody spoke to it is a loss of function
+    /// with no way back. Offering on a bus NM is about to release is the
+    /// recoverable direction: the next record puts it right.
+    void SetCommunicationAllowed(bool allowed);
+
    private:
     explicit Routing(std::shared_ptr<const score::mw_someip_config::Root> config);
     void SetupOfferings();
+    void StopOfferings();
+    /// Brings the offerings in line with @p gate_. Must be called holding its lock.
+    void ApplyOfferingState();
     void ProcessMessages(std::atomic<bool>& shutdown_requested);
     InstanceId LookupInstanceId(ServiceId service_id) const;
+
+    /// Whether this node should currently be offering, and why.
+    ///
+    /// Held behind a shared_ptr so that Routing stays movable: Create() returns
+    /// one by value, and a std::mutex member would make that impossible.
+    struct OfferingGate {
+        std::mutex lock{};
+        /// vsomeip has reached ST_REGISTERED. Nothing can be offered before it.
+        bool registered{false};
+        /// Network Management permits communication. True until it says not.
+        bool allowed{true};
+        /// What has actually been offered, so a repeated decision is not a
+        /// repeated call into vsomeip.
+        bool offering{false};
+    };
 
     std::shared_ptr<const score::mw_someip_config::Root> config_;
     std::shared_ptr<vsomeip::application> application_{};
     std::shared_ptr<vsomeip::payload> payload_{};
+    std::shared_ptr<OfferingGate> gate_{std::make_shared<OfferingGate>()};
     std::thread processing_thread_{};
 };
 

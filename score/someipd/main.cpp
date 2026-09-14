@@ -22,6 +22,7 @@
 #include <string>
 
 #include "impl/local_network_service.h"
+#include "impl/network_control.h"
 #include "impl/remote_network_service.h"
 #include "impl/routing.h"
 #include "score/config/mw_someip_config_generated.h"
@@ -48,6 +49,7 @@ static void termination_handler(int /*signal*/) {
 static void print_help() {
     std::cout << "Syntax: someipd -h/--help\n"
               << "        someipd -c/--configuration <config.bin> [-i/--ipc_channel <name>]\n"
+              << "                [-n/--nm_control <socket path>] [-m/--nm_cluster <name>]\n"
               << "\n";
 
     std::cout << "Options:\n"
@@ -55,6 +57,13 @@ static void print_help() {
               << " -c/--configuration Specifies the configuration file\n"
               << " -i/--ipc_channel Name of the IPC channel to gatewayd (default: "
               << score::someip::kDefaultIpcChannelName << ")\n"
+              << " -n/--nm_control Path of the socket Network Management connects to. Without\n"
+              << "                 it this daemon offers its services unconditionally, as it\n"
+              << "                 always has.\n"
+              << " -m/--nm_cluster Communication cluster this daemon's services belong to.\n"
+              << "                 Records for other clusters are ignored. Without it every\n"
+              << "                 record applies, which is correct only where this daemon\n"
+              << "                 serves a single cluster.\n"
               << "\n";
 }
 
@@ -63,14 +72,18 @@ int main(int argc, char* argv[]) {
     std::signal(SIGTERM, termination_handler);
     std::signal(SIGINT, termination_handler);
 
-    const char* const short_opts = "hc:i:";
+    const char* const short_opts = "hc:i:n:m:";
     const option long_opts[] = {{"help", no_argument, nullptr, 'h'},
                                 {"configuration", required_argument, nullptr, 'c'},
                                 {"ipc_channel", required_argument, nullptr, 'i'},
+                                {"nm_control", required_argument, nullptr, 'n'},
+                                {"nm_cluster", required_argument, nullptr, 'm'},
                                 {nullptr, no_argument, nullptr, 0}};
 
     score::filesystem::Path configuration_path{};
     std::string ipc_channel_name{score::someip::kDefaultIpcChannelName};
+    std::string nm_control_path{};
+    std::string nm_cluster{};
 
     while (true) {
         const int opt{getopt_long(argc, argv, short_opts, long_opts, nullptr)};
@@ -89,6 +102,14 @@ int main(int argc, char* argv[]) {
             }
             case 'i': {
                 ipc_channel_name = optarg;
+                break;
+            }
+            case 'n': {
+                nm_control_path = optarg;
+                break;
+            }
+            case 'm': {
+                nm_cluster = optarg;
                 break;
             }
             // Unknown option
@@ -221,6 +242,33 @@ int main(int argc, char* argv[]) {
             }
             remote_network_services.push_back(std::move(create_result).value());
         }
+    }
+
+    // Network Management's control channel, when this node has one. It decides
+    // whether the cluster this daemon's services sit on may be awake; without
+    // it, offerings are unconditional, exactly as before this option existed.
+    //
+    // Created after Routing, and Routing is not moved again after this point:
+    // the handler holds a pointer into it and runs on the listener's thread.
+    std::unique_ptr<NetworkControl> network_control{};
+    if (!nm_control_path.empty()) {
+        auto* const routed = &routing.value();
+        network_control = NetworkControl::Create(
+            nm_control_path, [routed, nm_cluster](const NmComStateRecord& record) {
+                if (!nm_cluster.empty() && (record.cluster != nm_cluster)) {
+                    // Another cluster's business. Acting on it would let a
+                    // network this daemon does not sit on silence its services.
+                    return;
+                }
+                routed->SetCommunicationAllowed(record.com_state == ComState::kFullCom);
+            });
+        if (network_control == nullptr) {
+            score::mw::log::LogFatal()
+                << "[someipd] Could not bind the Network Management control socket";
+            return EXIT_FAILURE;
+        }
+        score::mw::log::LogInfo()
+            << "[someipd] Network Management control socket ready; offering until told otherwise";
     }
 
     score::mw::log::LogInfo() << "[someipd] Starting routing loop...";

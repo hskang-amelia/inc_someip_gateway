@@ -38,6 +38,7 @@ Routing& Routing::operator=(Routing&& other) noexcept {
         config_ = std::move(other.config_);
         application_ = std::move(other.application_);
         payload_ = std::move(other.payload_);
+        gate_ = std::move(other.gate_);
         processing_thread_ = std::move(other.processing_thread_);
     }
     return *this;
@@ -91,6 +92,57 @@ void Routing::SetupOfferings() {
     }
 }
 
+void Routing::StopOfferings() {
+    for (const auto* const service_type : *config_->service_types()) {
+        const auto* service_instances = service_type->local_service_instances();
+        if ((service_instances == nullptr) || service_instances->empty()) {
+            continue;
+        }
+        for (const auto* const local_service_instance : *service_instances) {
+            for (const auto* const event : *service_type->events()) {
+                application_->stop_offer_event(service_type->service_id(),
+                                               local_service_instance->instance_id(),
+                                               event->event_id());
+            }
+            score::mw::log::LogInfo()
+                << "[someipd] Withdrawing service 0x"
+                << score::mw::log::LogHex16{service_type->service_id()} << " instance 0x"
+                << score::mw::log::LogHex16{local_service_instance->instance_id()};
+            application_->stop_offer_service(service_type->service_id(),
+                                             local_service_instance->instance_id(),
+                                             service_type->service_version_major());
+        }
+    }
+}
+
+void Routing::ApplyOfferingState() {
+    // Both conditions, so that permission arriving before registration is
+    // remembered rather than lost, and registration after a withdrawal does not
+    // quietly re-offer.
+    const bool should_offer{gate_->registered && gate_->allowed};
+    if (should_offer == gate_->offering) {
+        return;
+    }
+    if (should_offer) {
+        score::mw::log::LogInfo() << "[someipd] Setting up offerings...";
+        SetupOfferings();
+    } else {
+        score::mw::log::LogInfo()
+            << "[someipd] Network Management withdrew communication; stopping offerings.";
+        StopOfferings();
+    }
+    gate_->offering = should_offer;
+}
+
+void Routing::SetCommunicationAllowed(bool allowed) {
+    if (!gate_) {
+        return;
+    }
+    const std::lock_guard<std::mutex> guard{gate_->lock};
+    gate_->allowed = allowed;
+    ApplyOfferingState();
+}
+
 InstanceId Routing::LookupInstanceId(ServiceId service_id) const {
     for (const auto* const service_type : *config_->service_types()) {
         if (service_type->service_id() != service_id) {
@@ -114,8 +166,15 @@ void Routing::Run(std::atomic<bool>& shutdown_requested, std::function<void()> o
                                              vsomeip::state_type_e state) {
         if (state == vsomeip::state_type_e::ST_REGISTERED) {
             score::mw::log::LogInfo() << "[someipd] Application registered with routing daemon.";
-            score::mw::log::LogInfo() << "[someipd] Setting up offerings...";
-            SetupOfferings();
+            {
+                // Offering goes through the gate rather than straight to
+                // SetupOfferings(), so that a withdrawal Network Management
+                // sent before vsomeip finished registering is still in force
+                // when it does.
+                const std::lock_guard<std::mutex> guard{gate_->lock};
+                gate_->registered = true;
+                ApplyOfferingState();
+            }
             if (on_registered) {
                 on_registered();
             }
