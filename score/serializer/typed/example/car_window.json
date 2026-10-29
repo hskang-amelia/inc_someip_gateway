@@ -1,0 +1,37 @@
+{
+  "namespace": "car_window",
+  "types": {
+    "WindowPosition": {
+      "fields": [
+        {"name": "window_id", "type": "uint8"},
+        {"name": "position_percent", "type": "float32"},
+        {"name": "is_moving", "type": "bool"}
+      ]
+    },
+    "WindowState": {
+      "fields": [
+        {"name": "timestamp_ms", "type": "uint64"},
+        {"name": "windows", "type": "WindowPosition", "array": 4},
+        {"name": "child_lock", "type": "bool"}
+      ]
+    },
+    "WindowCommand": {
+      "fields": [
+        {"name": "window_id", "type": "uint8"},
+        {"name": "target_percent", "type": "int16"}
+      ]
+    }
+  },
+  "service_types": [
+    {
+      "service_type_name": "car_window",
+      "events": [
+        {"name": "window_state", "type": "WindowState"},
+        {"name": "window_command", "type": "WindowCommand"}
+      ],
+      "fields": [
+        {"name": "window_position", "type": "WindowPosition"}
+      ]
+    }
+  ]
+}

@@ -17,6 +17,8 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@score_docs_as_code//:docs.bzl", "docs_bundle")
 
+exports_files(["exported_symbols.lds"])
+
 # Interface between gatewayd and the serializer library. The interface is defined as a C header file and the actual implementation is provided by a shared library which is loaded at runtime by gatewayd.
 cc_library(
     name = "interface",

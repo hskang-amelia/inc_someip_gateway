@@ -54,6 +54,8 @@ test_suite(
     tests = [
         "//score/bridged_services/test:bridged_service_configs_test",
         "//score/serializer:null_serializer_test",
+        "//score/serializer/typed:someip_wire_test",
+        "//score/serializer/typed/example:car_window_serializer_test",
         "//score/socom/test/unit:socom_test",
         "//score/someipd/test:gatewayd_services_test",
         "//score/someipd/test:local_network_service_test",
