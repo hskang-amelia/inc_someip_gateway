@@ -45,14 +45,14 @@ names_from_toolchains(
 pkg_files(
     name = "gatewayd_config_files",
     srcs = [
+        "//score/config:car_window_serializer",
         "//score/config:config_file",
         "//score/gatewayd:etc/mw_com_config.json",
-        "//score/serializer:null_serializer",
     ],
     renames = {
+        "//score/config:car_window_serializer": "score_com_serializer.so",
         "//score/config:config_file": "gatewayd_config.bin",
         "//score/gatewayd:etc/mw_com_config.json": "gatewayd_mw_com_config.json",
-        "//score/serializer:null_serializer": "score_com_serializer.so",
     },
 )
 

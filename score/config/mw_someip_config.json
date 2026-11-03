@@ -8,7 +8,11 @@
             "events": [
                 {
                     "event_name": "window_control",
-                    "event_id": 1
+                    "event_id": 1,
+                    "serialization_config_type": "TypedSerializerConfig",
+                    "serialization_config": {
+                        "type_name": "carwindow::WindowControl"
+                    }
                 }
             ],
             "local_service_instances": [

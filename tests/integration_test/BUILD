@@ -32,10 +32,10 @@ pkg_files(
     srcs = [
         ":vsomeip.json",
         ":vsomeip-runtime-pkg",
+        "//score/config:car_window_serializer",
         "//score/config:config_file",
         "//score/gatewayd",
         "//score/gatewayd:etc/mw_com_config.json",
-        "//score/serializer:null_serializer",
         "//score/someipd",
         "//score/someipd:etc/mw_com_config.json",
     ],
