@@ -15,6 +15,6 @@
 
 namespace score::someip_gateway::serializer {
 
-std::span<const Codec> GetCodecs() { return {}; }
+CodecTable GetCodecs() { return {}; }
 
 }  // namespace score::someip_gateway::serializer

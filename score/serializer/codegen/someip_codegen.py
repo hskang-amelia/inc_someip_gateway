@@ -196,9 +196,9 @@ def encode(t, value, indent, depth=0):
         if t.name == "bool":
             return f"{pad}if (!wire::PutBool(w, {value})) {{\n{pad}    return false;\n{pad}}}\n"
         if t.name == "float32":
-            raw = f"std::bit_cast<std::uint32_t>({value})"
+            raw = f"wire::BitCast<std::uint32_t>({value})"
         elif t.name == "float64":
-            raw = f"std::bit_cast<std::uint64_t>({value})"
+            raw = f"wire::BitCast<std::uint64_t>({value})"
         else:
             raw = f"static_cast<{PRIMITIVES[_unsigned(t.name)][0]}>({value})"
         return f"{pad}if (!w.PutUint({raw}, {width}U)) {{\n{pad}    return false;\n{pad}}}\n"
@@ -269,9 +269,9 @@ def _decode_primitive(t, value, indent, reader, depth):
     if t.name == "bool":
         return f"{head} || {raw} > 1U) {{\n{pad}    return false;\n{pad}}}\n{pad}{value} = {raw} != 0U;\n"
     if t.name == "float32":
-        conv = f"std::bit_cast<float>(static_cast<std::uint32_t>({raw}))"
+        conv = f"wire::BitCast<float>(static_cast<std::uint32_t>({raw}))"
     elif t.name == "float64":
-        conv = f"std::bit_cast<double>({raw})"
+        conv = f"wire::BitCast<double>({raw})"
     else:
         conv = f"static_cast<{PRIMITIVES[_unsigned(t.name)][0]}>({raw})"
         if t.name.startswith("int"):
@@ -303,10 +303,14 @@ def generate_header(model, guard):
         f"namespace {model.namespace} {{\n\n",
         (
             "template <typename T, std::uint32_t N>\nstruct BoundedVector {\n"
-            "    std::uint32_t size{};\n    std::array<T, N> data{};\n    bool operator==(const BoundedVector&) const = default;\n};\n\n"
+            "    std::uint32_t size{};\n    std::array<T, N> data{};\n"
+            "    bool operator==(const BoundedVector& o) const { return size == o.size && data == o.data; }\n"
+            "    bool operator!=(const BoundedVector& o) const { return !(*this == o); }\n};\n\n"
             "/// UTF-8 content without BOM and terminator.\n"
             "template <std::uint32_t N>\nstruct BoundedString {\n"
-            "    std::uint32_t size{};\n    std::array<char, N> data{};\n    bool operator==(const BoundedString&) const = default;\n};\n\n"
+            "    std::uint32_t size{};\n    std::array<char, N> data{};\n"
+            "    bool operator==(const BoundedString& o) const { return size == o.size && data == o.data; }\n"
+            "    bool operator!=(const BoundedString& o) const { return !(*this == o); }\n};\n\n"
         ),
     ]
     for name in model.order:
@@ -318,7 +322,9 @@ def generate_header(model, guard):
         else:
             out.append(f"struct {name} {{\n")
             out += [f"    {cpp_type(f)} {fname}{{}};\n" for fname, f in t.fields]
-            out.append(f"    bool operator==(const {name}&) const = default;\n")
+            cmp = " && ".join(f"{fname} == o.{fname}" for fname, _ in t.fields) or "true"
+            out.append(f"    bool operator==(const {name}& o) const {{ return {cmp}; }}\n")
+            out.append(f"    bool operator!=(const {name}& o) const {{ return !(*this == o); }}\n")
             out.append(f"}};\nstatic_assert(std::is_trivially_copyable_v<{name}>);\n\n")
     out.append(f"}}  // namespace {model.namespace}\n\n#endif  // {guard}\n")
     return "".join(out)
@@ -329,7 +335,7 @@ def generate_source(model, header_include):
     out = [
         LICENSE,
         f'#include "{header_include}"\n\n',
-        "#include <bit>\n#include <cstddef>\n#include <cstdint>\n#include <new>\n\n",
+        "#include <cstddef>\n#include <cstdint>\n#include <new>\n\n",
         '#include "score/serializer/codec.h"\n#include "score/serializer/wire.h"\n\n',
         "namespace {\n\nnamespace wire = score::someip_gateway::serializer::wire;\n",
         f"constexpr bool kBigEndian = {big};\n\n",
@@ -391,7 +397,7 @@ def generate_source(model, header_include):
         )
     out.append(
         "};\n\n}  // namespace\n\nnamespace score::someip_gateway::serializer {\n\n"
-        "std::span<const Codec> GetCodecs() { return kCodecs; }\n\n"
+        "CodecTable GetCodecs() { return {kCodecs, sizeof(kCodecs) / sizeof(kCodecs[0])}; }\n\n"
         "}  // namespace score::someip_gateway::serializer\n"
     )
     return "".join(out)

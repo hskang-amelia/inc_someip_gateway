@@ -21,8 +21,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace score::someip_gateway::serializer::wire {
+
+/// Bit-wise reinterpretation of a trivially copyable value (C++17 replacement for std::bit_cast).
+template <typename To, typename From>
+inline To BitCast(const From& from) {
+    static_assert(sizeof(To) == sizeof(From), "BitCast needs equal sizes");
+    static_assert(std::is_trivially_copyable_v<To> && std::is_trivially_copyable_v<From>,
+                  "BitCast needs trivially copyable types");
+    To to{};
+    std::memcpy(&to, &from, sizeof(To));
+    return to;
+}
 
 class Writer {
    public:

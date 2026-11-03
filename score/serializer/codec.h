@@ -16,7 +16,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <span>
 #include <string_view>
 
 namespace score::someip_gateway::serializer {
@@ -33,9 +32,18 @@ struct Codec {
     bool (*deserialize)(const std::uint8_t* buffer, std::size_t buffer_size, void* object);
 };
 
+/// Read-only view of the codec table (C++17 replacement for std::span<const Codec>).
+struct CodecTable {
+    const Codec* first{nullptr};
+    std::size_t count{0U};
+    const Codec* begin() const { return first; }
+    const Codec* end() const { return first + count; }
+    std::size_t size() const { return count; }
+};
+
 /// Codecs linked into the serializer library. Defined exactly once per library,
 /// either by generated code or by :no_codecs.
-std::span<const Codec> GetCodecs();
+CodecTable GetCodecs();
 
 }  // namespace score::someip_gateway::serializer
 
