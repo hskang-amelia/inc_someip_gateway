@@ -18,6 +18,7 @@ Components
 - :need:`comp__gatewayd`
 - :need:`comp__serializer`
 - :need:`comp__null_serializer`
+- :need:`comp__typed_serializer`
 - :need:`comp__someipd`
 
 

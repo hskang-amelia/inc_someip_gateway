@@ -3,7 +3,7 @@
   "definitions": {
     "score_mw_someip_config_SerializationConfig" : {
       "type" : "string",
-      "enum": ["NONE", "NullSerializerConfig"]
+      "enum": ["NONE", "NullSerializerConfig", "TypedSerializerConfig"]
     },
     "score_mw_someip_config_Root" : {
       "type" : "object",
@@ -87,6 +87,18 @@
       },
       "additionalProperties" : false
     },
+    "score_mw_someip_config_TypedSerializerConfig" : {
+      "type" : "object",
+      "description" : "Configuration for a typed serializer, which converts between the IPC sample type and its\nSOME/IP wire format using a codec linked into the serializer library.",
+      "properties" : {
+        "type_name" : {
+                "type" : "string",
+                "description" : "Name of the codec, e.g. \"carwindow::WindowControl\"."
+              }
+      },
+      "required" : ["type_name"],
+      "additionalProperties" : false
+    },
     "score_mw_someip_config_Event" : {
       "type" : "object",
       "description" : "Describes a single event within a service.",
@@ -103,7 +115,7 @@
                 "$ref" : "#/definitions/score_mw_someip_config_SerializationConfig"
               },
         "serialization_config" : {
-                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" }],
+                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" },{ "$ref" : "#/definitions/score_mw_someip_config_TypedSerializerConfig" }],
                 "description" : "Serialization configuration for this event."
               },
         "eventgroup_ids" : {
@@ -130,14 +142,14 @@
                 "$ref" : "#/definitions/score_mw_someip_config_SerializationConfig"
               },
         "request_serialization_config" : {
-                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" }],
+                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" },{ "$ref" : "#/definitions/score_mw_someip_config_TypedSerializerConfig" }],
                 "description" : "Serialization configuration for the request (call) of this method."
               },
         "response_serialization_config_type" : {
                 "$ref" : "#/definitions/score_mw_someip_config_SerializationConfig"
               },
         "response_serialization_config" : {
-                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" }],
+                "anyOf": [{ "$ref" : "#/definitions/score_mw_someip_config_NullSerializerConfig" },{ "$ref" : "#/definitions/score_mw_someip_config_TypedSerializerConfig" }],
                 "description" : "Serialization configuration for the response (return) of this method."
               }
       },

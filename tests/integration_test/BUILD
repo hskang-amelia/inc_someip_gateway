@@ -56,6 +56,7 @@ pkg_files(
         "//score/gateway_ipc_binding/test:gateway_ipc_binding_test",
         "//score/gateway_ipc_binding/test:mw_com_config.json",
         "//score/serializer:null_serializer_test",
+        "//score/serializer:typed_serializer_test",
         "//score/socom/test/stress:socom_stress_test",
         "//score/socom/test/unit:socom_test",
     ],

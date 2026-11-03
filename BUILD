@@ -53,7 +53,10 @@ test_suite(
     name = "unit_tests",
     tests = [
         "//score/bridged_services/test:bridged_service_configs_test",
+        "//score/serializer:codec_test",
         "//score/serializer:null_serializer_test",
+        "//score/serializer:typed_serializer_test",
+        "//score/serializer/codegen:someip_codegen_test",
         "//score/socom/test/unit:socom_test",
         "//score/someipd/test:gatewayd_services_test",
         "//score/someipd/test:local_network_service_test",

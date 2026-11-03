@@ -16,6 +16,9 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@score_docs_as_code//:docs.bzl", "docs_bundle")
+load(":defs.bzl", "someip_codecs")
+
+exports_files(["exported_symbols.lds"])
 
 # Interface between gatewayd and the serializer library. The interface is defined as a C header file and the actual implementation is provided by a shared library which is loaded at runtime by gatewayd.
 cc_library(
@@ -33,9 +36,27 @@ cc_library(
 )
 
 cc_library(
+    name = "codec",
+    hdrs = [
+        "codec.h",
+        "wire.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "no_codecs",
+    srcs = ["no_codecs.cpp"],
+    deps = [":codec"],
+)
+
+# Needs exactly one GetCodecs() definition at link time: :no_codecs or a someip_codecs target.
+cc_library(
     name = "null_serializer_impl",
     srcs = ["null_serializer.cpp"],
+    visibility = ["//visibility:public"],
     deps = [
+        ":codec",
         ":interface",
         ":pre_serialized_data",
         "//score/config:config_flatbuffers",
@@ -51,8 +72,45 @@ cc_test(
     tags = ["unit"],
     visibility = ["//tests/integration_test:__pkg__"],
     deps = [
+        ":no_codecs",
         ":null_serializer_impl",
         ":pre_serialized_data",
+        "//score/config:config_flatbuffers",
+        "@googletest//:gtest_main",
+    ],
+)
+
+someip_codecs(
+    name = "test_codecs",
+    testonly = True,
+    types = "test_types.json",
+)
+
+cc_test(
+    name = "codec_test",
+    size = "small",
+    srcs = ["codec_test.cpp"],
+    tags = ["unit"],
+    deps = [
+        ":codec",
+        ":test_codecs",
+        ":test_codecs_types",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "typed_serializer_test",
+    size = "small",
+    srcs = ["typed_serializer_test.cpp"],
+    linkstatic = True,
+    tags = ["unit"],
+    visibility = ["//tests/integration_test:__pkg__"],
+    deps = [
+        ":null_serializer_impl",
+        ":pre_serialized_data",
+        ":test_codecs",
+        ":test_codecs_types",
         "//score/config:config_flatbuffers",
         "@googletest//:gtest_main",
     ],
@@ -65,7 +123,10 @@ cc_shared_library(
     shared_lib_name = "score_com_serializer.so",
     user_link_flags = ["-Wl,--version-script=$(location exported_symbols.lds)"],
     visibility = ["//visibility:public"],
-    deps = [":null_serializer_impl"],
+    deps = [
+        ":no_codecs",
+        ":null_serializer_impl",
+    ],
 )
 
 # Import library used as indicator to bazel that this library will be exchanged at runtime
@@ -83,6 +144,7 @@ cc_import(
 docs_bundle(
     name = "docs_bundle",
     code_targets = [
+        ":codec",
         ":interface",
         ":pre_serialized_data",
         ":null_serializer",
