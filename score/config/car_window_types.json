@@ -1,0 +1,18 @@
+{
+    "namespace": "carwindow",
+    "types": {
+        "WindowCommand": {
+            "enum": "uint8",
+            "values": {
+                "kStop": 0,
+                "kOpen": 1,
+                "kClose": 2
+            }
+        },
+        "WindowControl": {
+            "struct": [
+                {"name": "command", "type": "WindowCommand"}
+            ]
+        }
+    }
+}

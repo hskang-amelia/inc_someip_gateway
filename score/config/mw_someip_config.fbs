@@ -53,6 +53,7 @@ table ServiceInstance {
 
 union SerializationConfig {
     NullSerializerConfig,
+    TypedSerializerConfig,
     // Add more serialization config types here as needed
 }
 
@@ -61,6 +62,13 @@ union SerializationConfig {
 table NullSerializerConfig {
     /// Size of the pre-serialized message buffers.
     max_message_size: uint32;
+}
+
+/// Configuration for a typed serializer, which converts between the IPC sample type and its
+/// SOME/IP wire format using a codec linked into the serializer library.
+table TypedSerializerConfig {
+    /// Name of the codec, e.g. "carwindow::WindowControl".
+    type_name: string (required);
 }
 
 /// Describes a single event within a service.

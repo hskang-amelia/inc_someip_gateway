@@ -1,0 +1,31 @@
+{
+    "namespace": "score::someip_gateway::serializer::test",
+    "types": {
+        "Mode": {
+            "enum": "int16",
+            "values": {
+                "kA": -2,
+                "kB": 7
+            }
+        },
+        "Inner": {
+            "length_field": 16,
+            "struct": [
+                {"name": "flag", "type": "bool"},
+                {"name": "temperature", "type": "float32"}
+            ]
+        },
+        "Message": {
+            "struct": [
+                {"name": "id", "type": "uint32"},
+                {"name": "delta", "type": "int8"},
+                {"name": "mode", "type": "Mode"},
+                {"name": "fixed", "type": "uint16[2]"},
+                {"name": "bytes", "type": "uint8[<=4]", "length_field": 8},
+                {"name": "label", "type": "string<=8"},
+                {"name": "inners", "type": "Inner[<=2]"},
+                {"name": "value", "type": "float64"}
+            ]
+        }
+    }
+}

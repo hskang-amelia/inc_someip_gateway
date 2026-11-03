@@ -22,6 +22,7 @@ GATEWAY_IPC_BINDING_TEST_COMMAND = "gateway_ipc_binding_test --mw-com-config /op
 TEST_APPLICATIONS = [
     GATEWAY_IPC_BINDING_TEST_COMMAND,
     "null_serializer_test",
+    "typed_serializer_test",
     "socom_stress_test",
     "socom_test",
 ]
